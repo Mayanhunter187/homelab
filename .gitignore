@@ -20,3 +20,4 @@ secrets/
 # Editors
 .vscode/
 *.swp
+tfplan
