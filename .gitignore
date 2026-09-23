@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+*.tfvars
+!*.tfvars.example
+# Secrets / credentials
+*.pem
+*.key
+id_*
+.env
+*.token
+kubeconfig*
+secrets/
+# Ansible
+*.retry
+.ansible/
+# Editors
+.vscode/
+*.swp
