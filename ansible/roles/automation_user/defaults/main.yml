@@ -1,0 +1,9 @@
+---
+# Account Ansible logs in as after bootstrap
+automation_user_name: ansible
+
+# Public key allowed to log in as that account (read from taskmaster)
+automation_user_pubkey: "{{ lookup('ansible.builtin.file', '~/.ssh/id_ed25519.pub') }}"
+
+# Account cloud-init gave the key to; the key is removed from it at the end
+automation_user_bootstrap_user: mayanhunter187

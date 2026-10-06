@@ -1,0 +1,7 @@
+---
+- name: Bootstrap the automation user
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - automation_user

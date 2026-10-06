@@ -1,0 +1,45 @@
+---
+- name: Check whether the automation user can already log in
+  ansible.builtin.command: >-
+    ssh -o BatchMode=yes -o ConnectTimeout=5
+    {{ automation_user_name }}@{{ ansible_host }} true
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  register: automation_user_login
+  changed_when: false
+  failed_when: false
+
+- name: Fall back to the bootstrap user on first-time setup
+  ansible.builtin.set_fact:
+    ansible_user: "{{ automation_user_bootstrap_user }}"
+  when: automation_user_login.rc != 0
+
+- name: Create the automation user
+  ansible.builtin.user:
+    name: "{{ automation_user_name }}"
+    comment: Ansible automation
+    shell: /bin/bash
+    create_home: true
+
+- name: Authorize the automation key for the automation user
+  ansible.posix.authorized_key:
+    user: "{{ automation_user_name }}"
+    key: "{{ automation_user_pubkey }}"
+    state: present
+    exclusive: true
+
+- name: Allow the automation user passwordless sudo
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ automation_user_name }}"
+    content: "{{ automation_user_name }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Remove the automation key from the bootstrap user
+  ansible.posix.authorized_key:
+    user: "{{ automation_user_bootstrap_user }}"
+    key: "{{ automation_user_pubkey }}"
+    state: absent
