@@ -1,6 +1,6 @@
 ---
 - name: Bootstrap the automation user
-  hosts: all
+  hosts: "{{ target_hosts | default('all') }}"
   gather_facts: false
   become: true
   roles:

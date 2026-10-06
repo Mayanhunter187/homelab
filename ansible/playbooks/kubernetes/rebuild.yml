@@ -1,0 +1,88 @@
+---
+# Destroy and recreate the k3s cluster VMs, then bootstrap and baseline them.
+# Usage:  ansible-playbook playbooks/kubernetes/rebuild.yml
+#         ansible-playbook playbooks/kubernetes/rebuild.yml -e rebuild_confirm=true   (no prompt)
+
+- name: Recreate the k3s cluster VMs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    rebuild_terraform_dir: "{{ lookup('ansible.builtin.pipe', 'git rev-parse --show-toplevel') }}/terraform/kubernetes"
+  tasks:
+    - name: Confirm the rebuild
+      ansible.builtin.pause:
+        prompt: "This will DESTROY and recreate {{ groups['k3s_cluster'] | join(', ') }}. Type 'rebuild' to continue"
+      register: rebuild_confirmation
+      when: not (rebuild_confirm | default(false) | bool)
+
+    - name: Stop unless the rebuild was confirmed
+      ansible.builtin.assert:
+        that: rebuild_confirmation.user_input == 'rebuild'
+        fail_msg: Rebuild aborted
+      when: rebuild_confirmation is not skipped
+
+    - name: Check that AWS credentials work (Terraform needs them for the Proxmox token)
+      ansible.builtin.command: aws sts get-caller-identity
+      changed_when: false
+
+    - name: Destroy the cluster VMs
+      community.general.terraform:
+        project_path: "{{ rebuild_terraform_dir }}"
+        state: absent
+
+    - name: Create the cluster VMs
+      community.general.terraform:
+        project_path: "{{ rebuild_terraform_dir }}"
+        state: present
+
+- name: Wait for the new VMs to finish booting
+  hosts: k3s_cluster
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Forget the old host key
+      ansible.builtin.known_hosts:
+        name: "{{ ansible_host }}"
+        state: absent
+      delegate_to: localhost
+
+    - name: Wait for SSH to come up
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        search_regex: OpenSSH
+        timeout: 300
+      delegate_to: localhost
+
+    - name: Read the new host key
+      ansible.builtin.command: ssh-keyscan -t ed25519 {{ ansible_host }}
+      register: rebuild_host_key
+      changed_when: false
+      delegate_to: localhost
+
+    - name: Trust the new host key
+      ansible.builtin.known_hosts:
+        name: "{{ ansible_host }}"
+        key: "{{ rebuild_host_key.stdout }}"
+        state: present
+      delegate_to: localhost
+
+    - name: Wait for cloud-init to finish first boot
+      ansible.builtin.command: cloud-init status --wait
+      vars:
+        ansible_user: "{{ automation_user_bootstrap_user }}"
+      register: rebuild_cloud_init
+      changed_when: false
+      failed_when: rebuild_cloud_init.rc not in [0, 2]
+
+- name: Bootstrap the cluster
+  ansible.builtin.import_playbook: ../common/bootstrap.yml
+  vars:
+    target_hosts: k3s_cluster
+
+- name: Baseline the cluster
+  ansible.builtin.import_playbook: ../common/baseline.yml
+  vars:
+    target_hosts: k3s_cluster
