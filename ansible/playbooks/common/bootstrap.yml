@@ -1,6 +1,7 @@
 ---
 - name: Bootstrap the automation user
-  hosts: "{{ target_hosts | default('all') }}"
+  # taskmaster runs Ansible as its own user; it never gets the automation account
+  hosts: "{{ target_hosts | default('all:!control') }}"
   gather_facts: false
   become: true
   roles:

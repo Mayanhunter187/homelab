@@ -89,12 +89,14 @@ spec:
               value: "true"
             - name: vip_leasename
               value: plndr-cp-lock
+            # Longer than kube-vip's 5/3/1 defaults: etcd sits on a consumer SSD
+            # whose fsyncs can stall for seconds, which made the VIP flap
             - name: vip_leaseduration
-              value: "5"
+              value: "15"
             - name: vip_renewdeadline
-              value: "3"
+              value: "10"
             - name: vip_retryperiod
-              value: "1"
+              value: "2"
           securityContext:
             capabilities:
               add: ["NET_ADMIN", "NET_RAW"]

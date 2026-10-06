@@ -68,6 +68,10 @@ Automation connects as a dedicated, key-only `ansible` account. The bootstrap
 role detects first-time setup automatically, falls back to the cloud-init user
 to create the account, then removes the automation key from that user.
 
+taskmaster, the control node Ansible runs from, is in the inventory as
+`control` with a local connection. It gets the baseline but is skipped by the
+bootstrap playbook, so it never gets the automation account.
+
 The baseline role never reboots on its own; it reports when a reboot is
 required. Only the rebuild playbook reboots, before anything is running.
 Configuration that could block access, such as `sudoers` and `sshd`, is
