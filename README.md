@@ -1,6 +1,6 @@
 # homelab
 
-Single source of truth for the lunartech.cloud homelab.
+Single source of truth for the homelab
 
 | Path | What |
 |---|---|
@@ -8,5 +8,3 @@ Single source of truth for the lunartech.cloud homelab.
 | `ansible/` | Host configuration — run from `ansible/` |
 | `kubernetes/` | Cluster manifests / Argo CD apps |
 | `scripts/` | Helper scripts |
-
-Control node: taskmaster (172.16.100.60).
