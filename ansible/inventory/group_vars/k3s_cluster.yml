@@ -33,3 +33,10 @@ k3s_app_secrets:
     namespace: don-ju
     data:
       cookies.txt: /homelab/don-ju/youtube-cookies
+
+# Apps Argo CD deploys: each entry is a git folder kept applied to a namespace
+argocd_apps:
+  - name: don-ju
+    repo: https://github.com/Mayanhunter187/Don-ju-discord-bot.git
+    path: deploy/k8s/base
+    namespace: don-ju

@@ -16,3 +16,11 @@
   retries: 30
   delay: 10
   changed_when: false
+
+- name: Register apps with Argo CD
+  ansible.builtin.template:
+    src: argocd-apps.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/argocd-apps.yaml
+    owner: root
+    group: root
+    mode: "0600"

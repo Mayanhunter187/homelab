@@ -1,0 +1,22 @@
+# Managed by Ansible (k3s_argocd role). k3s auto-applies this file.
+{% for app in argocd_apps %}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ app.name }}
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: {{ app.repo }}
+    targetRevision: main
+    path: {{ app.path }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ app.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{% endfor %}
