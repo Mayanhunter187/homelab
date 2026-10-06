@@ -43,3 +43,10 @@
     user: "{{ automation_user_bootstrap_user }}"
     key: "{{ automation_user_pubkey }}"
     state: absent
+
+- name: Switch to the automation user for the rest of the run
+  ansible.builtin.set_fact:
+    ansible_user: "{{ automation_user_name }}"
+
+- name: Reconnect as the automation user
+  ansible.builtin.meta: reset_connection
