@@ -1,0 +1,12 @@
+# Managed by Ansible (k3s_argocd role). k3s auto-applies this file.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: platform-argocd
+  namespace: kube-system
+spec:
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: {{ argocd_chart_version }}
+  targetNamespace: argocd
+  createNamespace: true
