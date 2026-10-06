@@ -86,3 +86,18 @@
   ansible.builtin.import_playbook: ../common/baseline.yml
   vars:
     target_hosts: k3s_cluster
+
+- name: Reboot the cluster if updates require it
+  hosts: k3s_cluster
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Check whether a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: rebuild_reboot_required
+
+    - name: Reboot to finish applying updates
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: rebuild_reboot_required.stat.exists
