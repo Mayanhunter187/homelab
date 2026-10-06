@@ -10,3 +10,11 @@ k3s_api_hostname: k8s.lunartech.cloud
 
 # kube-vip release
 kube_vip_version: v1.2.4
+
+# MetalLB: hands out LoadBalancer IPs on the Apps VLAN
+metallb_chart_version: 0.16.1
+metallb_address_pool: 172.16.250.200-172.16.250.210
+
+# Traefik: the ingress controller, on the first MetalLB address
+traefik_chart_version: 41.6.1
+traefik_lb_ip: 172.16.250.200

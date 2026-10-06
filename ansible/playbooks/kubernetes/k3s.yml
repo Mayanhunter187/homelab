@@ -10,3 +10,9 @@
   become: true
   roles:
     - k3s_server
+
+- name: Deploy ingress (MetalLB + Traefik)
+  hosts: k3s_servers[0]
+  become: true
+  roles:
+    - k3s_ingress

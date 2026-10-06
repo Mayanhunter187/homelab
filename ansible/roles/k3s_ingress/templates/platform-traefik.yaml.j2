@@ -1,0 +1,16 @@
+# Managed by Ansible (k3s_ingress role). k3s auto-applies this file.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: platform-traefik
+  namespace: kube-system
+spec:
+  repo: https://traefik.github.io/charts
+  chart: traefik
+  version: {{ traefik_chart_version }}
+  targetNamespace: traefik
+  createNamespace: true
+  valuesContent: |-
+    service:
+      annotations:
+        metallb.io/loadBalancerIPs: {{ traefik_lb_ip }}

@@ -1,0 +1,60 @@
+---
+- name: Deploy the MetalLB chart
+  ansible.builtin.template:
+    src: platform-metallb.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-metallb.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for the MetalLB resource types to exist
+  ansible.builtin.command: k3s kubectl get crd ipaddresspools.metallb.io
+  register: k3s_ingress_metallb_crd
+  until: k3s_ingress_metallb_crd.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Wait for the MetalLB controller to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n metallb-system wait --for=condition=Available deployment
+    -l app.kubernetes.io/component=controller --timeout=30s
+  register: k3s_ingress_metallb_ready
+  until: k3s_ingress_metallb_ready.rc == 0
+  retries: 20
+  delay: 10
+  changed_when: false
+
+- name: Give MetalLB its address pool
+  ansible.builtin.template:
+    src: platform-metallb-pool.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-metallb-pool.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy the Traefik chart
+  ansible.builtin.template:
+    src: platform-traefik.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-traefik.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for Traefik to get its LoadBalancer IP
+  ansible.builtin.command: >-
+    k3s kubectl -n traefik get svc
+    -o jsonpath={.items[0].status.loadBalancer.ingress[0].ip}
+  register: k3s_ingress_traefik_ip
+  until: k3s_ingress_traefik_ip.stdout == traefik_lb_ip
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Check Traefik answers from taskmaster
+  ansible.builtin.wait_for:
+    host: "{{ traefik_lb_ip }}"
+    port: 443
+    timeout: 60
+  delegate_to: localhost
+  become: false
