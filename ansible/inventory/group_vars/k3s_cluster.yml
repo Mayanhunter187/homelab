@@ -21,3 +21,15 @@ traefik_lb_ip: 172.16.250.200
 
 # Argo CD: deploys apps to the cluster from git
 argocd_chart_version: 10.9.6
+
+# App secrets: copied from Parameter Store into Kubernetes Secrets.
+# Each key under "data" becomes a key in the Secret; its value is a parameter name.
+k3s_app_secrets:
+  - name: discord-bot-secret
+    namespace: don-ju
+    data:
+      token: /homelab/don-ju/discord-token
+  - name: youtube-cookies
+    namespace: don-ju
+    data:
+      cookies.txt: /homelab/don-ju/youtube-cookies

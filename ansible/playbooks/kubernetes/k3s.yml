@@ -23,3 +23,9 @@
   become: true
   roles:
     - k3s_argocd
+
+- name: Create app Secrets
+  hosts: k3s_servers[0]
+  become: true
+  roles:
+    - k3s_app_secrets

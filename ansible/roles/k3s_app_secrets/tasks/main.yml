@@ -1,0 +1,13 @@
+---
+- name: Create app Secrets from Parameter Store
+  ansible.builtin.command: k3s kubectl apply -f -
+  args:
+    stdin: "{{ lookup('ansible.builtin.template', 'app-secret.yaml.j2') }}"
+  loop: "{{ k3s_app_secrets }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+  register: k3s_app_secrets_apply
+  changed_when: >-
+    'created' in k3s_app_secrets_apply.stdout or
+    'configured' in k3s_app_secrets_apply.stdout
+  no_log: true
