@@ -1,0 +1,10 @@
+---
+- name: Install the QEMU guest agent
+  ansible.builtin.apt:
+    name: qemu-guest-agent
+    state: present
+
+- name: Ensure the QEMU guest agent is running
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    state: started

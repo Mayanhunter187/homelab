@@ -1,0 +1,6 @@
+---
+- name: Apply the server baseline
+  hosts: all
+  become: true
+  roles:
+    - baseline

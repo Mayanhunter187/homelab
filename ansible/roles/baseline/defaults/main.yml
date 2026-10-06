@@ -1,0 +1,24 @@
+---
+# Upgrade all packages on every run
+baseline_upgrade_packages: true
+
+# Standard tools installed on every server
+baseline_packages:
+  - bash-completion
+  - ca-certificates
+  - curl
+  - dnsutils
+  - git
+  - gnupg
+  - htop
+  - jq
+  - tree
+  - unzip
+  - vim
+  - wget
+
+# Timezone (tz database name)
+baseline_timezone: America/New_York
+
+# Max disk space the system journal may use
+baseline_journald_max_use: 500M

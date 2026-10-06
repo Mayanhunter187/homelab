@@ -1,0 +1,10 @@
+---
+- name: Check whether a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: baseline_reboot_required
+
+- name: Report that a reboot is required
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} needs a reboot to finish applying updates"
+  when: baseline_reboot_required.stat.exists

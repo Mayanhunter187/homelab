@@ -1,0 +1,18 @@
+---
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: dist
+  when: baseline_upgrade_packages
+
+- name: Install baseline tools
+  ansible.builtin.apt:
+    name: "{{ baseline_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Remove packages that are no longer needed
+  ansible.builtin.apt:
+    autoremove: true

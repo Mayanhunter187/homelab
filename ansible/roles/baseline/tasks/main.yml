@@ -1,0 +1,21 @@
+---
+- name: Packages
+  ansible.builtin.import_tasks: packages.yml
+
+- name: QEMU guest agent
+  ansible.builtin.import_tasks: guest_agent.yml
+
+- name: Time
+  ansible.builtin.import_tasks: time.yml
+
+- name: Journald
+  ansible.builtin.import_tasks: journald.yml
+
+- name: Automatic security updates
+  ansible.builtin.import_tasks: unattended_upgrades.yml
+
+- name: SSH hardening
+  ansible.builtin.import_tasks: ssh.yml
+
+- name: Reboot check
+  ansible.builtin.import_tasks: reboot_check.yml
