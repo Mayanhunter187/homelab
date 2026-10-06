@@ -1,5 +1,10 @@
 # Managed by Ansible (k3s_server role). Local edits will be overwritten.
+{% if inventory_hostname == groups['k3s_servers'][0] %}
 cluster-init: true
+{% else %}
+server: https://{{ k3s_api_vip }}:6443
+token: {{ k3s_join_token }}
+{% endif %}
 node-ip: {{ ansible_host }}
 tls-san:
   - {{ k3s_api_vip }}

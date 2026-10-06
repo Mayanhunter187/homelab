@@ -47,6 +47,7 @@
         name: "{{ ansible_host }}"
         state: absent
       delegate_to: localhost
+      throttle: 1
 
     - name: Wait for SSH to come up
       ansible.builtin.wait_for:
@@ -68,6 +69,7 @@
         key: "{{ rebuild_host_key.stdout }}"
         state: present
       delegate_to: localhost
+      throttle: 1
 
     - name: Wait for cloud-init to finish first boot
       ansible.builtin.command: cloud-init status --wait

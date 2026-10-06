@@ -7,6 +7,20 @@
     group: root
     mode: "0755"
 
+- name: Read the cluster join token from the first server
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/token
+  register: k3s_join_token_file
+  delegate_to: "{{ groups['k3s_servers'][0] }}"
+  no_log: true
+  when: not (inventory_hostname == groups['k3s_servers'][0])
+
+- name: Remember the join token
+  ansible.builtin.set_fact:
+    k3s_join_token: "{{ k3s_join_token_file.content | b64decode | trim }}"
+  no_log: true
+  when: not (inventory_hostname == groups['k3s_servers'][0])
+
 - name: Write the k3s config
   ansible.builtin.template:
     src: config.yaml.j2
@@ -82,7 +96,7 @@
   ansible.builtin.slurp:
     src: /etc/rancher/k3s/k3s.yaml
   register: k3s_kubeconfig
-  run_once: true
+  when: inventory_hostname == groups['k3s_servers'][0]
 
 - name: Create ~/.kube and ~/.local/bin on taskmaster
   ansible.builtin.file:
@@ -94,7 +108,7 @@
     - .local/bin
   delegate_to: localhost
   become: false
-  run_once: true
+  when: inventory_hostname == groups['k3s_servers'][0]
 
 - name: Install the kubeconfig on taskmaster, pointed at the virtual IP
   ansible.builtin.copy:
@@ -103,7 +117,7 @@
     mode: "0600"
   delegate_to: localhost
   become: false
-  run_once: true
+  when: inventory_hostname == groups['k3s_servers'][0]
 
 - name: Install kubectl on taskmaster, matching the cluster version
   ansible.builtin.get_url:
@@ -113,4 +127,4 @@
     mode: "0755"
   delegate_to: localhost
   become: false
-  run_once: true
+  when: inventory_hostname == groups['k3s_servers'][0]
