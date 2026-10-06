@@ -1,0 +1,10 @@
+# Managed by Ansible (k3s_server role). Local edits will be overwritten.
+cluster-init: true
+node-ip: {{ ansible_host }}
+tls-san:
+  - {{ k3s_api_vip }}
+  - {{ k3s_api_hostname }}
+disable:
+  - traefik
+  - servicelb
+write-kubeconfig-mode: "0600"

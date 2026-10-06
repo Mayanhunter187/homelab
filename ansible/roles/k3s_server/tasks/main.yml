@@ -1,0 +1,116 @@
+---
+- name: Create the k3s config directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the k3s config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart k3s
+
+- name: Create the k3s auto-deploy manifests directory
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy kube-vip for the API virtual IP
+  ansible.builtin.template:
+    src: kube-vip.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/kube-vip.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Check the installed k3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_installed_version
+  changed_when: false
+  failed_when: false
+
+- name: Download the k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install k3s
+  ansible.builtin.command: /usr/local/bin/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  when: k3s_version not in k3s_installed_version.stdout
+  changed_when: true
+
+- name: Ensure k3s is running and enabled
+  ansible.builtin.systemd_service:
+    name: k3s
+    state: started
+    enabled: true
+
+- name: Apply any k3s config changes before checking the cluster
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the node to be Ready
+  ansible.builtin.command: k3s kubectl wait --for=condition=Ready node/{{ ansible_hostname }} --timeout=30s
+  register: k3s_node_ready
+  until: k3s_node_ready.rc == 0
+  retries: 20
+  delay: 10
+  changed_when: false
+
+- name: Wait for the API to answer on the virtual IP
+  ansible.builtin.wait_for:
+    host: "{{ k3s_api_vip }}"
+    port: 6443
+    timeout: 300
+  delegate_to: localhost
+  become: false
+
+- name: Read the cluster admin kubeconfig
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_kubeconfig
+  run_once: true
+
+- name: Create ~/.kube and ~/.local/bin on taskmaster
+  ansible.builtin.file:
+    path: "{{ lookup('ansible.builtin.env', 'HOME') }}/{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - .kube
+    - .local/bin
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install the kubeconfig on taskmaster, pointed at the virtual IP
+  ansible.builtin.copy:
+    content: "{{ k3s_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://' ~ k3s_api_vip ~ ':6443') }}"
+    dest: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/config"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install kubectl on taskmaster, matching the cluster version
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ k3s_version.split('+') | first }}/bin/linux/amd64/kubectl"
+    checksum: "sha256:https://dl.k8s.io/release/{{ k3s_version.split('+') | first }}/bin/linux/amd64/kubectl.sha256"
+    dest: "{{ lookup('ansible.builtin.env', 'HOME') }}/.local/bin/kubectl"
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+  run_once: true

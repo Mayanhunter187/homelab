@@ -101,3 +101,6 @@
       ansible.builtin.reboot:
         reboot_timeout: 600
       when: rebuild_reboot_required.stat.exists
+
+- name: Install k3s
+  ansible.builtin.import_playbook: k3s.yml

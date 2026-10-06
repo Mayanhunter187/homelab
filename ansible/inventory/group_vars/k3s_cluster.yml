@@ -1,0 +1,12 @@
+---
+# k3s release to install (pinned; change deliberately to upgrade)
+k3s_version: v1.36.5+k3s1
+
+# Virtual IP the Kubernetes API is served on (held by kube-vip)
+k3s_api_vip: 172.16.250.10
+
+# Extra name the API certificate is valid for (DNS record optional, for later)
+k3s_api_hostname: k8s.lunartech.cloud
+
+# kube-vip release
+kube_vip_version: v1.2.4
