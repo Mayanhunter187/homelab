@@ -1,9 +1,0 @@
-cluster-init: true
-node-ip: {{ ansible_host }}
-tls-san:
-  - {{ k3s_api_name }}
-  - {{ k3s_vip }}
-disable:
-  - traefik
-  - servicelb
-write-kubeconfig-mode: "0600"
