@@ -1,4 +1,24 @@
 ---
+- name: Read the Argo CD admin password from Parameter Store
+  ansible.builtin.set_fact:
+    argocd_admin_password_raw: >-
+      {{ lookup('amazon.aws.ssm_parameter', argocd_admin_password_param,
+         on_missing='skip', on_denied='warn') | default('', true) }}
+  no_log: true
+
+# A short value is treated as unset so a placeholder can never become the password
+- name: Use the admin password only if it is long enough
+  ansible.builtin.set_fact:
+    argocd_admin_password: "{{ argocd_admin_password_raw if argocd_admin_password_raw | length >= 20 else '' }}"
+  no_log: true
+
+- name: Report when the admin password is left unchanged
+  ansible.builtin.debug:
+    msg: >-
+      {{ argocd_admin_password_param }} is missing or shorter than 20 characters,
+      so the Argo CD admin password is left unchanged.
+  when: not argocd_admin_password
+
 - name: Deploy the Argo CD chart
   ansible.builtin.template:
     src: platform-argocd.yaml.j2
@@ -16,6 +36,27 @@
   retries: 30
   delay: 10
   changed_when: false
+
+# The bcrypt salt comes from the password itself, so the hash (and the chart
+# values) only change when the password does
+- name: Wait for Argo CD to use the admin password from Parameter Store
+  ansible.builtin.command: >-
+    k3s kubectl -n argocd get secret argocd-secret -o jsonpath={.data.admin\.password}
+  register: k3s_argocd_admin_hash
+  until: >-
+    (k3s_argocd_admin_hash.stdout | b64decode) ==
+    (argocd_admin_password | password_hash('bcrypt', salt=(argocd_admin_password | hash('sha256'))[:22]))
+  retries: 30
+  delay: 10
+  changed_when: false
+  no_log: true
+  when: argocd_admin_password | length > 0
+
+- name: Delete the initial admin password Secret once a real one is set
+  ansible.builtin.command: k3s kubectl -n argocd delete secret argocd-initial-admin-secret --ignore-not-found
+  register: k3s_argocd_initial_secret
+  changed_when: "'deleted' in k3s_argocd_initial_secret.stdout"
+  when: argocd_admin_password | length > 0
 
 - name: Register apps with Argo CD
   ansible.builtin.template:

@@ -1,0 +1,67 @@
+---
+- name: Deploy the External Secrets chart
+  ansible.builtin.template:
+    src: platform-external-secrets.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-external-secrets.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for the External Secrets resource types to exist
+  ansible.builtin.command: k3s kubectl get crd clustersecretstores.external-secrets.io externalsecrets.external-secrets.io
+  register: k3s_external_secrets_crds
+  until: k3s_external_secrets_crds.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Wait for the External Secrets webhook to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n external-secrets wait --for=condition=Available deployment
+    -l app.kubernetes.io/name=external-secrets-webhook --timeout=30s
+  register: k3s_external_secrets_ready
+  until: k3s_external_secrets_ready.rc == 0
+  retries: 20
+  delay: 10
+  changed_when: false
+
+- name: Read the External Secrets AWS credentials from Parameter Store
+  ansible.builtin.set_fact:
+    external_secrets_access_key: >-
+      {{ lookup('amazon.aws.ssm_parameter', external_secrets_access_key_param,
+         on_missing='skip', on_denied='warn') | default('', true) }}
+    external_secrets_secret_key: >-
+      {{ lookup('amazon.aws.ssm_parameter', external_secrets_secret_key_param,
+         on_missing='skip', on_denied='warn') | default('', true) }}
+  no_log: true
+
+- name: Note whether External Secrets can manage the app Secrets
+  ansible.builtin.set_fact:
+    external_secrets_enabled: "{{ external_secrets_access_key | length > 0 and external_secrets_secret_key | length > 0 }}"
+
+- name: Connect External Secrets to Parameter Store and sync the app Secrets
+  ansible.builtin.command: k3s kubectl apply -f -
+  args:
+    stdin: "{{ lookup('ansible.builtin.template', 'parameter-store.yaml.j2') }}"
+  register: k3s_external_secrets_apply
+  changed_when: "'created' in k3s_external_secrets_apply.stdout or 'configured' in k3s_external_secrets_apply.stdout"
+  no_log: true
+  when: external_secrets_enabled
+
+- name: Wait for the app Secrets to sync
+  ansible.builtin.command: >-
+    k3s kubectl -n {{ item.namespace }} wait --for=condition=Ready
+    externalsecret/{{ item.name }} --timeout=60s
+  loop: "{{ k3s_app_secrets }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+  changed_when: false
+  when: external_secrets_enabled
+
+- name: Report that the app Secrets are still copied by Ansible
+  ansible.builtin.debug:
+    msg: >-
+      {{ external_secrets_access_key_param }} and {{ external_secrets_secret_key_param }}
+      are not set, so the app Secrets are copied once by the k3s_app_secrets role
+      instead of being kept in sync.
+  when: not external_secrets_enabled

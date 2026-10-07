@@ -8,6 +8,20 @@
     name: chrony
     state: present
 
+- name: Configure extra NTP servers
+  ansible.builtin.copy:
+    dest: /etc/chrony/sources.d/baseline.sources
+    content: |
+      # Managed by Ansible (baseline role). Local edits will be overwritten.
+      {% for server in baseline_ntp_servers %}
+      server {{ server }} iburst
+      {% endfor %}
+    owner: root
+    group: root
+    mode: "0644"
+  when: baseline_ntp_servers | length > 0
+  notify: Restart chrony
+
 - name: Ensure chrony is running and enabled
   ansible.builtin.systemd_service:
     name: chrony

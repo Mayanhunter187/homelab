@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-parameter-store
+  namespace: external-secrets
+type: Opaque
+stringData:
+  access-key-id: {{ external_secrets_access_key | to_json }}
+  secret-access-key: {{ external_secrets_secret_key | to_json }}
+---
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: aws-parameter-store
+spec:
+  provider:
+    aws:
+      service: ParameterStore
+      region: {{ aws_region }}
+      auth:
+        secretRef:
+          accessKeyIDSecretRef:
+            name: aws-parameter-store
+            namespace: external-secrets
+            key: access-key-id
+          secretAccessKeySecretRef:
+            name: aws-parameter-store
+            namespace: external-secrets
+            key: secret-access-key
+{% for app_secret in k3s_app_secrets %}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ app_secret.namespace }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ app_secret.name }}
+  namespace: {{ app_secret.namespace }}
+spec:
+  refreshInterval: {{ external_secrets_refresh_interval }}
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-parameter-store
+  target:
+    name: {{ app_secret.name }}
+    creationPolicy: Owner
+  data:
+{% for key, parameter in app_secret.data.items() %}
+    - secretKey: {{ key }}
+      remoteRef:
+        key: {{ parameter }}
+{% endfor %}
+{% endfor %}

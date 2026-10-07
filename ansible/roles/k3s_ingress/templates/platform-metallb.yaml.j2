@@ -10,3 +10,7 @@ spec:
   version: {{ metallb_chart_version }}
   targetNamespace: metallb-system
   createNamespace: true
+  valuesContent: |-
+    # Only L2 mode is used, so the FRR (BGP) backend isn't needed
+    frrk8s:
+      enabled: false

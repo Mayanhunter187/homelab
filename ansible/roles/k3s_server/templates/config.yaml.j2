@@ -13,3 +13,5 @@ disable:
   - traefik
   - servicelb
 write-kubeconfig-mode: "0600"
+# Serve etcd metrics on the node IP (port 2381) for Prometheus
+etcd-expose-metrics: true

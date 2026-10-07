@@ -10,3 +10,18 @@ spec:
   version: {{ argocd_chart_version }}
   targetNamespace: argocd
   createNamespace: true
+  valuesContent: |-
+    # No SSO is configured, so the bundled Dex server has nothing to do
+    dex:
+      enabled: false
+    # Application sync and health metrics for Prometheus
+    controller:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+{% if argocd_admin_password %}
+    configs:
+      secret:
+        argocdServerAdminPassword: "{{ argocd_admin_password | password_hash('bcrypt', salt=(argocd_admin_password | hash('sha256'))[:22]) }}"
+{% endif %}

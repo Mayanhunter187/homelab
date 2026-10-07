@@ -1,0 +1,37 @@
+# Managed by Ansible (k3s_kured role). k3s auto-applies this file.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: platform-kured
+  namespace: kube-system
+spec:
+  repo: https://kubereboot.github.io/charts
+  chart: kured
+  version: {{ kured_chart_version }}
+  targetNamespace: kube-system
+  valuesContent: |-
+    configuration:
+      # unattended-upgrades creates the sentinel file when an update needs a reboot
+      rebootSentinel: /var/run/reboot-required
+      period: 15m
+      timeZone: {{ kured_timezone }}
+      startTime: "{{ kured_start_time }}"
+      endTime: "{{ kured_end_time }}"
+      concurrency: 1
+      drainTimeout: 10m
+      # Let etcd and moved pods settle before the next node goes down
+      lockReleaseDelay: 10m
+      # Free the lock if a node never comes back from its reboot
+      lockTtl: 1h
+    metrics:
+      create: true
+    service:
+      create: true
+{% if kured_discord_webhook %}
+    extraEnvVars:
+      - name: KURED_NOTIFY_URL
+        valueFrom:
+          secretKeyRef:
+            name: kured-notify
+            key: url
+{% endif %}

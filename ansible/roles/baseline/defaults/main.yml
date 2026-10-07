@@ -17,6 +17,10 @@ baseline_packages:
   - vim
   - wget
 
+# Extra NTP servers for chrony, used alongside the distribution's pool
+# (needed where the pool can't be reached, e.g. a VLAN without outbound NTP)
+baseline_ntp_servers: []
+
 # Timezone (tz database name)
 baseline_timezone: America/New_York
 

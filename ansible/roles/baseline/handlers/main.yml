@@ -8,3 +8,9 @@
   ansible.builtin.systemd_service:
     name: ssh
     state: reloaded
+
+# A restart (not a reload) lets chrony step the clock if it has drifted
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: restarted

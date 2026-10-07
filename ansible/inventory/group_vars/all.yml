@@ -1,3 +1,6 @@
 ---
 # Cloud-init user that exists on a freshly built VM, before the ansible user does
 automation_user_bootstrap_user: mayanhunter187
+
+# Region holding the Parameter Store entries (matches terraform/kubernetes/provider.tf)
+aws_region: us-east-2

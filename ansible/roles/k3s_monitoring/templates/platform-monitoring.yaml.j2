@@ -1,0 +1,136 @@
+# Managed by Ansible (k3s_monitoring role). k3s auto-applies this file.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: platform-monitoring
+  namespace: kube-system
+spec:
+  repo: https://prometheus-community.github.io/helm-charts
+  chart: kube-prometheus-stack
+  version: {{ monitoring_chart_version }}
+  targetNamespace: monitoring
+  createNamespace: true
+  valuesContent: |-
+    # k3s runs the controller manager, scheduler and kube-proxy inside the k3s
+    # process without exposing their metrics, so don't scrape or alert on them
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    defaultRules:
+      rules:
+        kubeControllerManager: false
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        kubeProxy: false
+        windows: false
+
+    # etcd metrics are served on each server (etcd-expose-metrics in the k3s config)
+    kubeEtcd:
+      enabled: true
+      endpoints:
+{% for host in groups['k3s_servers'] %}
+        - {{ hostvars[host].ansible_host }}
+{% endfor %}
+      service:
+        port: 2381
+        targetPort: 2381
+
+    prometheus:
+      prometheusSpec:
+        scrapeInterval: 30s
+        retention: {{ monitoring_prometheus_retention }}
+        retentionSize: {{ monitoring_prometheus_retention_size }}
+        # Pick up ServiceMonitors, PodMonitors and rules from every namespace,
+        # not only ones labelled for this Helm release
+        serviceMonitorSelectorNilUsesHelmValues: false
+        podMonitorSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        resources:
+          requests:
+            cpu: 200m
+            memory: 768Mi
+          limits:
+            memory: 2Gi
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: local-path
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: {{ monitoring_prometheus_storage }}
+
+    alertmanager:
+      alertmanagerSpec:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+{% if monitoring_discord_webhook %}
+        # Mounted at /etc/alertmanager/secrets/alertmanager-discord/
+        secrets:
+          - alertmanager-discord
+{% endif %}
+      config:
+        route:
+          group_by: [namespace, alertname]
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          receiver: "{{ 'discord' if monitoring_discord_webhook else 'null' }}"
+          routes:
+            - receiver: "null"
+              matchers:
+                - alertname =~ "Watchdog|InfoInhibitor"
+            - receiver: "null"
+              matchers:
+                - severity = "info"
+        inhibit_rules:
+          - source_matchers: ['severity = critical']
+            target_matchers: ['severity =~ warning|info']
+            equal: [namespace, alertname]
+          - source_matchers: ['severity = warning']
+            target_matchers: ['severity = info']
+            equal: [namespace, alertname]
+          - source_matchers: ['alertname = InfoInhibitor']
+            target_matchers: ['severity = info']
+            equal: [namespace]
+        receivers:
+          - name: "null"
+{% if monitoring_discord_webhook %}
+          - name: discord
+            discord_configs:
+              - webhook_url_file: /etc/alertmanager/secrets/alertmanager-discord/url
+                send_resolved: true
+{% endif %}
+
+    grafana:
+      defaultDashboardsTimezone: browser
+{% if monitoring_grafana_password %}
+      admin:
+        existingSecret: grafana-admin
+        userKey: admin-user
+        passwordKey: admin-password
+{% endif %}
+      ingress:
+        enabled: true
+        # The class the Traefik chart creates is named after its release
+        ingressClassName: platform-traefik
+        hosts:
+          - {{ monitoring_grafana_hostname }}
+      # Keeps dashboards and users created in the UI across restarts
+      persistence:
+        enabled: true
+        storageClassName: local-path
+        size: 2Gi
+      sidecar:
+        dashboards:
+          # Load dashboard ConfigMaps (label grafana_dashboard=1) from any namespace,
+          # so apps can ship their own
+          searchNamespace: ALL

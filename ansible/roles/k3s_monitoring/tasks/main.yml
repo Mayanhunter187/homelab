@@ -1,0 +1,71 @@
+---
+- name: Read the optional monitoring settings from Parameter Store
+  ansible.builtin.set_fact:
+    monitoring_grafana_password: >-
+      {{ lookup('amazon.aws.ssm_parameter', monitoring_grafana_password_param,
+         on_missing='skip', on_denied='warn') | default('', true) }}
+    monitoring_discord_webhook: >-
+      {{ lookup('amazon.aws.ssm_parameter', monitoring_discord_webhook_param,
+         on_missing='skip', on_denied='warn') | default('', true) }}
+  no_log: true
+
+- name: Create the monitoring Secrets
+  ansible.builtin.command: k3s kubectl apply -f -
+  args:
+    stdin: "{{ lookup('ansible.builtin.template', 'monitoring-secrets.yaml.j2') }}"
+  register: k3s_monitoring_secrets
+  changed_when: "'created' in k3s_monitoring_secrets.stdout or 'configured' in k3s_monitoring_secrets.stdout"
+  no_log: true
+
+- name: Deploy the kube-prometheus-stack chart
+  ansible.builtin.template:
+    src: platform-monitoring.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-monitoring.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for the monitoring resource types to exist
+  ansible.builtin.command: k3s kubectl get crd servicemonitors.monitoring.coreos.com podmonitors.monitoring.coreos.com
+  register: k3s_monitoring_crds
+  until: k3s_monitoring_crds.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Wait for Prometheus to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n monitoring wait --for=condition=Ready pod
+    -l app.kubernetes.io/name=prometheus --timeout=30s
+  register: k3s_monitoring_ready
+  until: k3s_monitoring_ready.rc == 0
+  retries: 40
+  delay: 15
+  changed_when: false
+
+- name: Wait for Grafana to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n monitoring rollout status deployment/platform-monitoring-grafana --timeout=30s
+  register: k3s_monitoring_grafana_ready
+  until: k3s_monitoring_grafana_ready.rc == 0
+  retries: 20
+  delay: 15
+  changed_when: false
+
+# Grafana only reads its admin password when it first creates its database
+- name: Set the Grafana admin password from Parameter Store
+  ansible.builtin.command: >-
+    k3s kubectl -n monitoring exec -i deployment/platform-monitoring-grafana -c grafana --
+    grafana cli admin reset-admin-password --password-from-stdin
+  args:
+    stdin: "{{ monitoring_grafana_password }}"
+  changed_when: false
+  no_log: true
+  when: monitoring_grafana_password | length > 0
+
+- name: Report when alerts have nowhere to go
+  ansible.builtin.debug:
+    msg: >-
+      {{ monitoring_discord_webhook_param }} is not set, so Alertmanager has no
+      receiver. Add a Discord webhook URL there and rerun to get alerts.
+  when: not monitoring_discord_webhook

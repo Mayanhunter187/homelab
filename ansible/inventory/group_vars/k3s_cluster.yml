@@ -1,4 +1,8 @@
 ---
+# The Apps VLAN can't reach the public NTP pool; the gateway serves time
+baseline_ntp_servers:
+  - 172.16.250.1
+
 # k3s release to install (pinned; change deliberately to upgrade)
 k3s_version: v1.36.5+k3s1
 
@@ -21,8 +25,34 @@ traefik_lb_ip: 172.16.250.200
 
 # Argo CD: deploys apps to the cluster from git
 argocd_chart_version: 10.9.6
+# Admin password; left unchanged while the parameter is missing or shorter than 20 characters
+argocd_admin_password_param: /homelab/argocd/admin-password
 
-# App secrets: copied from Parameter Store into Kubernetes Secrets.
+# Monitoring: Prometheus, Alertmanager and Grafana (kube-prometheus-stack)
+monitoring_chart_version: 91.9.0
+monitoring_grafana_hostname: grafana.lunartech.cloud
+monitoring_prometheus_retention: 15d
+monitoring_prometheus_retention_size: 12GB
+monitoring_prometheus_storage: 15Gi
+# Optional; while missing, Grafana generates its own password and alerts go nowhere
+monitoring_grafana_password_param: /homelab/monitoring/grafana-admin-password
+monitoring_discord_webhook_param: /homelab/monitoring/discord-webhook
+
+# External Secrets: keeps the app Secrets below in sync with Parameter Store.
+# Its AWS credentials come from these parameters (IAM user homelab-external-secrets,
+# read-only on the app parameters). Until they exist, Ansible copies the Secrets once.
+external_secrets_chart_version: 2.12.0
+external_secrets_access_key_param: /homelab/external-secrets/access-key-id
+external_secrets_secret_key_param: /homelab/external-secrets/secret-access-key
+external_secrets_refresh_interval: 1h
+
+# kured: reboots one node at a time when updates need it, inside this window
+kured_chart_version: 6.1.0
+kured_timezone: America/New_York
+kured_start_time: "03:00"
+kured_end_time: "06:00"
+
+# App secrets: Kubernetes Secrets filled from Parameter Store.
 # Each key under "data" becomes a key in the Secret; its value is a parameter name.
 k3s_app_secrets:
   - name: discord-bot-secret
