@@ -92,11 +92,11 @@ spec:
             # Longer than kube-vip's 5/3/1 defaults: etcd sits on a consumer SSD
             # whose fsyncs can stall for seconds, which made the VIP flap
             - name: vip_leaseduration
-              value: "15"
+              value: "{{ k3s_leader_elect_lease_duration }}"
             - name: vip_renewdeadline
-              value: "10"
+              value: "{{ k3s_leader_elect_renew_deadline }}"
             - name: vip_retryperiod
-              value: "2"
+              value: "{{ k3s_leader_elect_retry_period }}"
           securityContext:
             capabilities:
               add: ["NET_ADMIN", "NET_RAW"]

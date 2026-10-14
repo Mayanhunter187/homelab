@@ -15,6 +15,18 @@ k3s_api_hostname: k8s.lunartech.cloud
 # kube-vip release
 kube_vip_version: v1.2.4
 
+# Leader election timings (seconds) for the controller manager, scheduler,
+# cloud controller and kube-vip. The defaults (15/10/2) let a disk stall of
+# 10s+ make k3s exit; these ride out ~40s and renew 5x less often.
+k3s_leader_elect_lease_duration: 60
+k3s_leader_elect_renew_deadline: 40
+k3s_leader_elect_retry_period: 10
+
+# etcd raft timings (milliseconds). The defaults (100/1000) start a leader
+# election whenever an fsync takes over a second.
+k3s_etcd_heartbeat_interval: 500
+k3s_etcd_election_timeout: 5000
+
 # MetalLB: hands out LoadBalancer IPs on the Apps VLAN
 metallb_chart_version: 0.16.1
 metallb_address_pool: 172.16.250.200-172.16.250.210

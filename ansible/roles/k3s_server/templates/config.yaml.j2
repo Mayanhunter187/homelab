@@ -15,3 +15,13 @@ disable:
 write-kubeconfig-mode: "0600"
 # Serve etcd metrics on the node IP (port 2381) for Prometheus
 etcd-expose-metrics: true
+# Slow-disk tolerance; see k3s_leader_elect_* and k3s_etcd_* in group_vars
+etcd-arg:
+  - heartbeat-interval={{ k3s_etcd_heartbeat_interval }}
+  - election-timeout={{ k3s_etcd_election_timeout }}
+{% for component in ['kube-controller-manager', 'kube-scheduler', 'kube-cloud-controller-manager'] %}
+{{ component }}-arg:
+  - leader-elect-lease-duration={{ k3s_leader_elect_lease_duration }}s
+  - leader-elect-renew-deadline={{ k3s_leader_elect_renew_deadline }}s
+  - leader-elect-retry-period={{ k3s_leader_elect_retry_period }}s
+{% endfor %}
