@@ -4,9 +4,10 @@ metadata:
   name: aws-parameter-store
   namespace: external-secrets
 type: Opaque
-stringData:
-  access-key-id: {{ external_secrets_access_key | to_json }}
-  secret-access-key: {{ external_secrets_secret_key | to_json }}
+# data, not stringData: kubectl apply reports stringData as changed on every run
+data:
+  access-key-id: "{{ external_secrets_access_key | b64encode }}"
+  secret-access-key: "{{ external_secrets_secret_key | b64encode }}"
 ---
 apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
