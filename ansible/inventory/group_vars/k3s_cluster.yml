@@ -75,6 +75,15 @@ k3s_app_secrets:
     namespace: don-ju
     data:
       cookies.txt: /homelab/don-ju/youtube-cookies
+  # The test bot: its own Discord app, the main bot's YouTube cookies
+  - name: discord-bot-secret
+    namespace: don-ju-test
+    data:
+      token: /homelab/don-ju-test/discord-token
+  - name: youtube-cookies
+    namespace: don-ju-test
+    data:
+      cookies.txt: /homelab/don-ju/youtube-cookies
 
 # Apps Argo CD deploys: each entry is a git folder kept applied to a namespace,
 # in an Argo CD project of the same name that can only reach that namespace
@@ -83,3 +92,7 @@ argocd_apps:
     repo: https://github.com/Mayanhunter187/Don-ju-discord-bot.git
     path: deploy/k8s/overlays/prod
     namespace: don-ju
+  - name: don-ju-test
+    repo: https://github.com/Mayanhunter187/Don-ju-discord-bot.git
+    path: deploy/k8s/overlays/test
+    namespace: don-ju-test
