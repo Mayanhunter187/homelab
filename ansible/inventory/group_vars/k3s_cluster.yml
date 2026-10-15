@@ -86,7 +86,8 @@ k3s_app_secrets:
       cookies.txt: /homelab/don-ju/youtube-cookies
 
 # Apps Argo CD deploys: each entry is a git folder kept applied to a namespace,
-# in an Argo CD project of the same name that can only reach that namespace
+# in an Argo CD project of the same name that can only reach that namespace.
+# "revision" is the branch to follow (default main).
 argocd_apps:
   - name: don-ju
     repo: https://github.com/Mayanhunter187/Don-ju-discord-bot.git
@@ -96,3 +97,4 @@ argocd_apps:
     repo: https://github.com/Mayanhunter187/Don-ju-discord-bot.git
     path: deploy/k8s/overlays/test
     namespace: don-ju-test
+    revision: test
