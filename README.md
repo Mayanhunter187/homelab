@@ -90,6 +90,11 @@ validated before being written.
 Platform components are deployed through the k3s Helm controller using
 `HelmChart` manifests, rather than a separate Helm or GitOps installation.
 
+Apps are deployed by Argo CD from their own repositories (`argocd_apps` in
+`group_vars/k3s_cluster.yml`). Each app gets its own Argo CD project that can
+only deploy from its repository into its namespace and can't create
+cluster-wide objects, so a test copy of an app can't change production.
+
 API failover has been tested by hard-stopping the server holding the virtual
 IP. The address moves to another server and the API remains reachable while
 etcd keeps quorum on the remaining two.

@@ -1,13 +1,28 @@
 # Managed by Ansible (k3s_argocd role). k3s auto-applies this file.
 {% for app in argocd_apps %}
 ---
+# Fences the app in: only its repo, only its namespace, no cluster-wide
+# objects. A test app can't touch production.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ app.name }}
+  namespace: argocd
+spec:
+  sourceRepos:
+    - {{ app.repo }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: {{ app.namespace }}
+  clusterResourceWhitelist: []
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: {{ app.name }}
   namespace: argocd
 spec:
-  project: default
+  project: {{ app.name }}
   source:
     repoURL: {{ app.repo }}
     targetRevision: main
