@@ -30,13 +30,28 @@
   roles:
     - k3s_argocd
 
+- name: Deploy Longhorn (volumes on each node's HDD disk)
+  hosts: k3s_cluster
+  become: true
+  tags: [longhorn]
+  roles:
+    - k3s_longhorn
+
 - name: Deploy External Secrets and the app Secrets
   hosts: k3s_servers[0]
   become: true
+  tags: [app_secrets]
   roles:
     - k3s_external_secrets
     - role: k3s_app_secrets
       when: not external_secrets_enabled
+
+- name: Deploy Garage (the Don'Ju song store, on Longhorn)
+  hosts: k3s_servers[0]
+  become: true
+  tags: [garage]
+  roles:
+    - k3s_garage
 
 - name: Deploy kured
   hosts: k3s_servers[0]

@@ -1,0 +1,32 @@
+# Managed by Ansible (k3s_longhorn role). k3s auto-applies this file.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: platform-longhorn
+  namespace: kube-system
+spec:
+  repo: https://charts.longhorn.io
+  chart: longhorn
+  version: {{ longhorn_chart_version }}
+  targetNamespace: longhorn-system
+  createNamespace: true
+  valuesContent: |-
+    # The "longhorn" StorageClass. local-path stays the cluster default.
+    # Retain: deleting a claim keeps the volume and its data.
+    persistence:
+      defaultClass: false
+      defaultClassReplicaCount: {{ longhorn_replica_count }}
+      reclaimPolicy: Retain
+    defaultSettings:
+      defaultDataPath: {{ longhorn_data_path }}
+      defaultReplicaCount: '{"v1":"{{ longhorn_replica_count }}","v2":"{{ longhorn_replica_count }}"}'
+      upgradeChecker: false
+    # One of each CSI helper instead of three; a node reboot only delays
+    # attaching for a minute while it moves
+    csi:
+      attacherReplicaCount: 1
+      provisionerReplicaCount: 1
+      resizerReplicaCount: 1
+      snapshotterReplicaCount: 1
+    longhornUI:
+      replicas: 1

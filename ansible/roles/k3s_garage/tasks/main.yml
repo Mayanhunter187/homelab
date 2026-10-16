@@ -1,0 +1,24 @@
+---
+- name: Deploy Garage
+  ansible.builtin.template:
+    src: garage.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/garage.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for Garage to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n garage rollout status statefulset/garage --timeout=30s
+  register: k3s_garage_ready
+  until: k3s_garage_ready.rc == 0
+  retries: 40
+  delay: 15
+  changed_when: false
+
+# A hard limit behind the bots' own clean-up, so the volume can't fill up
+- name: Cap the song bucket's size
+  ansible.builtin.command: >-
+    k3s kubectl -n garage exec garage-0 --
+    /garage bucket set-quotas --max-size {{ garage_bucket_quota }} {{ garage_bucket }}
+  changed_when: false

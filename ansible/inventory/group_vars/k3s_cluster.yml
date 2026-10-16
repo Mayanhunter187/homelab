@@ -64,6 +64,21 @@ kured_timezone: America/New_York
 kured_start_time: "03:00"
 kured_end_time: "06:00"
 
+# Longhorn: replicated volumes on each node's second disk (scsi1), which comes
+# from the k8s-bulk storage on pve01's HDD pool (pool0), not the system SSD
+longhorn_chart_version: 1.12.1
+longhorn_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+longhorn_data_path: /var/lib/longhorn
+# Copies of each volume, each on a different node
+longhorn_replica_count: 2
+
+# Garage: S3-compatible store for the Don'Ju bots' shared song cache, on Longhorn.
+# Its Secret ("garage") and the bots' key ("song-store") are app secrets below.
+garage_image: dxflrs/garage:v2.4.1
+garage_bucket: don-ju-songs
+garage_volume_size: 30Gi
+garage_bucket_quota: 25GiB
+
 # App secrets: Kubernetes Secrets filled from Parameter Store.
 # Each key under "data" becomes a key in the Secret; its value is a parameter name.
 k3s_app_secrets:
@@ -84,6 +99,24 @@ k3s_app_secrets:
     namespace: don-ju-test
     data:
       cookies.txt: /homelab/don-ju/youtube-cookies
+  # Garage's cluster secret and the access key it creates for the song bucket
+  - name: garage
+    namespace: garage
+    data:
+      rpc-secret: /homelab/garage/rpc-secret
+      access-key-id: /homelab/garage/song-store-access-key-id
+      secret-access-key: /homelab/garage/song-store-secret-key
+  # Both bots use that key to reach the shared song bucket
+  - name: song-store
+    namespace: don-ju
+    data:
+      access-key-id: /homelab/garage/song-store-access-key-id
+      secret-access-key: /homelab/garage/song-store-secret-key
+  - name: song-store
+    namespace: don-ju-test
+    data:
+      access-key-id: /homelab/garage/song-store-access-key-id
+      secret-access-key: /homelab/garage/song-store-secret-key
 
 # Apps Argo CD deploys: each entry is a git folder kept applied to a namespace,
 # in an Argo CD project of the same name that can only reach that namespace.

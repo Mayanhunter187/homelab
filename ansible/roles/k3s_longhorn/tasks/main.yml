@@ -1,0 +1,66 @@
+---
+# Every node: Longhorn attaches volumes over iSCSI and keeps its data on the
+# node's second disk (scsi1, on the HDD pool), not on the system SSD
+- name: Install the iSCSI initiator
+  ansible.builtin.apt:
+    name: open-iscsi
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Load the iSCSI module at boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/longhorn.conf
+    content: "iscsi_tcp\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Load the iSCSI module now
+  community.general.modprobe:
+    name: iscsi_tcp
+    state: present
+
+- name: Start iscsid
+  ansible.builtin.systemd_service:
+    name: iscsid
+    enabled: true
+    state: started
+
+# Only formats a disk with no filesystem on it; never reformats
+- name: Format the Longhorn data disk
+  community.general.filesystem:
+    dev: "{{ longhorn_disk_device }}"
+    fstype: ext4
+    opts: -L longhorn
+
+# nofail: a missing disk mustn't stop the node booting. Longhorn then sees
+# its disk is gone (no disk config in the folder) and won't use the SSD instead.
+- name: Mount the Longhorn data disk
+  ansible.posix.mount:
+    path: "{{ longhorn_data_path }}"
+    src: LABEL=longhorn
+    fstype: ext4
+    opts: defaults,noatime,nofail
+    state: mounted
+
+# The chart goes on after every node has its disk mounted, so Longhorn's
+# default disk lands on the HDD
+- name: Deploy the Longhorn chart
+  ansible.builtin.template:
+    src: platform-longhorn.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/platform-longhorn.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: inventory_hostname == groups['k3s_servers'][0]
+
+- name: Wait for Longhorn to be ready
+  ansible.builtin.command: >-
+    k3s kubectl -n longhorn-system rollout status daemonset/longhorn-manager --timeout=30s
+  register: k3s_longhorn_ready
+  until: k3s_longhorn_ready.rc == 0
+  retries: 40
+  delay: 15
+  changed_when: false
+  when: inventory_hostname == groups['k3s_servers'][0]

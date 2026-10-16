@@ -53,6 +53,17 @@ resource "proxmox_virtual_environment_vm" "k8s" {
     ssd          = true
   }
 
+  # Longhorn's data disk, on the HDD pool (pool0) through the k8s-bulk storage.
+  # Left out of Proxmox backups; Longhorn volumes get their own backups.
+  disk {
+    datastore_id = "k8s-bulk"
+    interface    = "scsi1"
+    size         = 80
+    iothread     = true
+    discard      = "on"
+    backup       = false
+  }
+
   network_device {
     bridge  = "vmbr0"
     vlan_id = 250
